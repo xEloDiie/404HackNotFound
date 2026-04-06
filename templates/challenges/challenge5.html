@@ -37,11 +37,4 @@
 
 {% block scripts %}
 {{ super() }}
-<script>
-    (function() {
-        const secretFlag = "FLAG-hb5v3m";
-        console.log("🕵️‍♂️ Pour ce challenge, tape getFlag() dans la console !");
-        window.getFlag = () => secretFlag;
-    })();
-</script>
 {% endblock %}

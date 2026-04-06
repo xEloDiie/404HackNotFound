@@ -3,19 +3,6 @@
 {% block title %}Connexion{% endblock %}
 
 {% block content %}
-<div class="login-page-wrapper">
-
-    <!-- Branding en haut à gauche -->
-    <div class="branding-top d-flex align-items-center">
-        <img src="{{ url_for('static', filename='images/logo.png') }}" 
-             alt="Logo"
-             class="logo-image me-3">
-
-        <div>
-            <h1 class="brand-title">404HackNotFound</h1>
-            <p class="brand-subtitle">Plateforme dédiée à la cybersécurité</p>
-        </div>
-    </div>
 
     <!-- Card centrée -->
     <div class="login-wrapper">
@@ -76,13 +63,6 @@
 {% endblock %}
 
 {% block scripts %}
-<!-- JS personnalisé -->
+{{ super() }}
 <script src="{{ url_for('static', filename='js/auth.js') }}"></script>
-
-<!-- Appel fonctions JS -->
-<script>
-    document.getElementById("toggleLoginPassword").addEventListener("click", () => {
-        togglePassword("loginPassword");
-    });
-</script>
 {% endblock %}

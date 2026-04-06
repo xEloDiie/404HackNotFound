@@ -11,12 +11,15 @@
 
     <body>
         <nav class="navbar navbar-expand-lg navbar-dark bg-dark">
-            <div class="container">
+            <div class="container titre-app">
                 <a href="{{ url_for('main.dashboard') }}" class="navbar-brand d-flex align-items-center">
                     <img src="{{ url_for('static', filename='images/logo.png') }}" 
                         alt="Logo"
-                        class="logo-image me-2">
-                    404HackNotFound
+                        class="logo-image">
+                    <div class="container">
+                        <h1 class="brand-title">404HackNotFound</h1>
+                        <p class="brand-subtitle">Plateforme ludique de challenges CTF liés à cybersécurité</p>
+                    </div>    
                 </a>
 
                 <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarContent"
@@ -57,7 +60,7 @@
 
                                 <li>
                                     <span class="dropdown-item-text">
-                                        <strong>Rôle :</strong> {{ session.get('role', 'visitor') }}
+                                        <strong>Rôle :</strong> {{ session.get('role', 'visiteur') }}
                                     </span>
                                 </li>
 
@@ -65,7 +68,7 @@
 
                                 <!-- Rang -->
                                 <li class="mb-2">
-                                    {% if role == "visitor" %}
+                                    {% if role == "visiteur" %}
 
                                         <span class="dropdown-item-text">
                                             <strong>Rang :</strong> Invité
@@ -110,7 +113,7 @@
 
                                 <!-- Déconnexion ou Créer compte / Se connecter -->
                                 <li><hr class="dropdown-divider"></li>
-                                {% if role == "visitor" %}
+                                {% if role == "visiteur" %}
                                     <li>
                                         <a class="dropdown-item text-danger" href="{{ url_for('auth.register') }}">
                                             Créer un compte / Se connecter

@@ -13,6 +13,7 @@ from utils.security import init_security
 app = Flask(__name__)
 app.config.from_object(Config)
 
+
 # =========================
 # SECURITY
 # =========================
@@ -71,7 +72,7 @@ def global_security():
     # =========================
     if endpoint.startswith("admin."):
         if session.get("role") != "admin":
-            flash("Accès refusé.", "danger")
+            flash("Accès refusé.")
             return redirect(session.get("last_page", url_for("main.dashboard")))
 
     # =========================
@@ -94,13 +95,14 @@ def global_security():
                 if now - last_active > Config.SESSION_TIMEOUT:
                     logs_collection.insert_one({
                         "timestamp": now,
-                        "username": session.get("username", "inconnu"),
+                        "username": session.get("username"),
                         "action": "logout",
                         "details": "Déconnexion automatique par inactivité"
                     })
 
-                    flash("Vous avez été déconnecté pour inactivité.", "warning")
                     session.clear()
+                    flash("Vous avez été déconnecté pour inactivité.")
+                    
                     return redirect(url_for("auth.login"))
 
             except:

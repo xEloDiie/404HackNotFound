@@ -40,7 +40,7 @@ def to_utc(dt):
 
 
 @auth_bp.route("/login", methods=["GET", "POST"])
-@limiter.limit("10 per minute", methods=["POST"])
+@limiter.limit("5 per minute", methods=["POST"])
 def login():
     if request.method == "POST":
         username = request.form["username"].strip()
@@ -209,7 +209,7 @@ def is_strong_password(password):
 
 
 @auth_bp.route("/register", methods=["GET", "POST"])
-@limiter.limit("10 per minute", methods=["POST"])
+@limiter.limit("5 per year", methods=["POST"])
 def register():
     global next_id
 
@@ -279,7 +279,7 @@ def register():
             })
 
             logs_collection.insert_one({
-                "timestamp": datetime.now(),
+                "timestamp": datetime.now(timezone.utc),
                 "username": username,
                 "action": "Création de compte",
                 "details": f"Utilisateur '{username}' a créé un compte."
@@ -451,7 +451,7 @@ def auth2fa():
 
 
 @auth_bp.route("/resend_2fa_code", methods=["POST"])
-@limiter.limit("5 per minute")
+@limiter.limit("2 per minute")
 def resend_2fa_code():
     if "pre_2fa_user_id" not in session:
         flash("Veuillez vous reconnecter pour recevoir un nouveau code.")

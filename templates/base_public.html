@@ -31,8 +31,22 @@
                 {% endif %}
             {% endwith %}
 
-            {% block content %}{% endblock %}
+            <div class="login-page-wrapper">
+                <!-- Branding en haut à gauche -->
+                <a href="{{ url_for('main.dashboard') }}" class="text-decoration-none text-reset">
+                    <div class="branding-top d-flex align-items-center">
+                        <img src="{{ url_for('static', filename='images/logo.png') }}" 
+                            alt="Logo"
+                            class="logo-image">
+                        <div class="container">
+                            <h1 class="brand-title">404HackNotFound</h1>
+                            <p class="brand-subtitle">Plateforme ludique de challenges CTF liés à cybersécurité</p>
+                        </div>
+                    </div>
+                </a>
 
+                {% block content %}{% endblock %}
+            </div>
         </main>
 
         <!-- Toggle Jour/Nuit -->

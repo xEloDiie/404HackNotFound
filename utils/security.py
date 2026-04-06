@@ -32,25 +32,34 @@ def init_security(app):
 
     # HTTPS + headers sécurité
     csp = {
-    "default-src": "'self'",
+        "default-src": "'self'",
 
-    "script-src": [
-        "'self'",
-        "https://cdn.jsdelivr.net",
-        "'unsafe-inline'"
-    ],
+        "script-src": [
+            "'self'",
+            "https://cdn.jsdelivr.net"
+        ],
 
-    "style-src": [
-        "'self'",
-        "https://cdn.jsdelivr.net",
-        "'unsafe-inline'"
-    ],
+        "style-src": [
+            "'self'",
+            "https://cdn.jsdelivr.net"
+        ],
 
-    "img-src": [
-        "'self'",
-        "data:"
-    ]
-}
+        "style-src-attr": [
+            "'self'",
+            "'unsafe-inline'"
+        ],
+
+        "img-src": [
+            "'self'",
+            "data:"
+        ],
+
+        "font-src": [
+            "'self'",
+            "https://cdn.jsdelivr.net"
+        ]
+    }
+
     
     Talisman(app, content_security_policy=csp, force_https=not app.debug)
 

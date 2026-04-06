@@ -75,7 +75,10 @@
   <div class="modal-dialog modal-dialog-centered">
     <div class="modal-content bg-success text-white">
       <div class="modal-body text-center">
-        <h5 id="successModalMessage"></h5>
+        <h5 id="successModalMessage"
+            {% if challenge_success %}
+            data-success="{{ challenge_success | safe }}"
+            {% endif %}></h5>
         <button type="button" class="btn btn-light mt-3" data-bs-dismiss="modal">Fermer</button>
       </div>
     </div>
@@ -85,11 +88,4 @@
 
 {% block scripts %}
 {{ super() }}
-    {% if challenge_success %}
-        <script>
-            const successModal = new bootstrap.Modal(document.getElementById('successModal'));
-            document.getElementById('successModalMessage').textContent = "{{ challenge_success | safe}}";
-            successModal.show();
-        </script>
-    {% endif %}
 {% endblock %}

@@ -37,11 +37,4 @@
 
 {% block scripts %}
 {{ super() }}
-<script>
-    (function() {
-        const flag = "{{ challenge.flag }}";
-        const flagB64 = btoa(flag);
-        document.cookie = "challenge_flag=" + flagB64 + "; path=/;";
-    })();
-</script>
 {% endblock %}

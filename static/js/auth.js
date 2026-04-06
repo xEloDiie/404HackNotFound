@@ -1,3 +1,7 @@
+// =========================
+// Fonctions Password
+// =========================
+
 // Fonction pour afficher ou cacher le mot de passe
 function togglePassword(inputId) {
     const input = document.getElementById(inputId);
@@ -16,14 +20,87 @@ function initPasswordStrength(inputId, helpId) {
     passwordInput.addEventListener("input", () => {
         const value = passwordInput.value;
 
-        const strong = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[^A-Za-z\d]).{8,}$/;
+        const checks = {
+            length: value.length >= 8 && value.length <= 64,
+            lowercase: /[a-z]/.test(value),
+            uppercase: /[A-Z]/.test(value),
+            digit: /\d/.test(value),
+            special: /[!@#$%^&*(),.?":{}|<>]/.test(value)
+        };
 
-        if (strong.test(value)) {
-            help.textContent = "Mot de passe fort ✅";
+        const messages = [];
+
+        if (!checks.length) messages.push("❌ Entre 8 et 64 caractères");
+        if (!checks.lowercase) messages.push("❌ Au moins une minuscule");
+        if (!checks.uppercase) messages.push("❌ Au moins une majuscule");
+        if (!checks.digit) messages.push("❌ Au moins un chiffre");
+        if (!checks.special) messages.push("❌ Au moins un caractère spécial");
+
+        if (messages.length === 0) {
+            help.textContent = "Mot de passe valide ✅";
             help.style.color = "green";
         } else {
-            help.textContent = "Mot de passe trop faible ❌";
+            help.innerHTML = messages.join("<br>");
             help.style.color = "red";
         }
     });
 }
+
+// =========================
+// Login
+// =========================
+function initLogin() {
+    const btn = document.getElementById("toggleLoginPassword");
+    if (btn) {
+        btn.addEventListener("click", () => togglePassword("loginPassword"));
+    }
+}
+
+// =========================
+// Register
+// =========================
+function initRegister() {
+    initPasswordStrength("password", "passwordHelp");
+
+    const btn = document.getElementById("togglePassword");
+    if (btn) {
+        btn.addEventListener("click", () => togglePassword("password"));
+    }
+}
+
+// =========================
+// Reset Password
+// =========================
+function initResetPassword() {
+    initPasswordStrength("password", "passwordHelp");
+
+    const btn = document.getElementById("togglePassword");
+    if (btn) {
+        btn.addEventListener("click", () => togglePassword("password"));
+    }
+}
+
+
+    // =========================
+    // Register / Password strength
+    // =========================
+    const registerPassword = document.getElementById("password");
+    if (registerPassword) {
+        initRegister();
+    }
+
+    // =========================
+    // Login
+    // =========================
+    const loginPassword = document.getElementById("loginPassword");
+    if (loginPassword) {
+        initLogin();
+    }
+
+    // =========================
+    // Reset password
+    // =========================
+    const resetPassword = document.getElementById("password"); 
+    if (resetPassword && document.querySelector('form[action*="reset_password"]')) {
+        initResetPassword();
+    }

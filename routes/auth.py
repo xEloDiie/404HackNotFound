@@ -36,7 +36,7 @@ def to_utc(dt):
 
 
 @auth_bp.route("/login", methods=["GET", "POST"])
-#@limiter.limit("10 per minute", methods=["POST"])
+@limiter.limit("10 per minute", methods=["POST"])
 def login():
     if request.method == "POST":
         username = request.form["username"].strip()
@@ -79,16 +79,23 @@ def login():
 
         # Compte non vérifié
         if not user.get("email_verified", False):
-            # Générer un nouveau token si besoin
-            verification_token = user.get("verification_token") or secrets.token_urlsafe(32)
-            
-            if not user.get("verification_token"):
-                users_collection.update_one({"_id": user["_id"]}, {"$set": {"verification_token": verification_token}})
-                user["verification_token"] = verification_token
-            
-            send_verification_email(user)
-            
-            flash("Votre compte doit être activé. Un email de vérification vous a été envoyé.")
+            now = datetime.now(timezone.utc)
+
+            # Suppression après 24h
+            if user.get("created_at") and (now - user["created_at"] > Config.VERIFICATION_EMAIL_VALIDITY):
+                users_collection.delete_one({"_id": user["_id"]})
+                flash("Compte supprimé (non vérifié après 24h).")
+                return redirect(url_for("auth.register"))
+
+            # Vérifier expiration du token
+            expiry = to_utc(user.get("verification_token_expiry"))
+
+            if not expiry or now > expiry:
+                send_verification_email(user)
+                flash("Lien expiré. Un nouveau mail de vérification a été envoyé.")
+            else:
+                flash("Votre compte doit être activé. Vérifiez votre email.")
+
             return redirect(url_for("auth.login"))
 
         # Vérifier si la session est encore active
@@ -200,7 +207,7 @@ def is_strong_password(password):
 
 
 @auth_bp.route("/register", methods=["GET", "POST"])
-#@limiter.limit("10 per minute", methods=["POST"])
+@limiter.limit("10 per minute", methods=["POST"])
 def register():
     global next_id
 
@@ -240,14 +247,18 @@ def register():
         verification_token = secrets.token_urlsafe(32)
         totp_secret = pyotp.random_base32()
 
+        now = datetime.now(timezone.utc)
+        
         user = {
             "_id": next_id,
-            "username": username,              # version originale
-            "username_lower": username_lower,  # version normalisée pour comparaison
+            "username": username,
+            "username_lower": username_lower,
             "email": email,
             "password": ph.hash(password),
             "role": user_role["role_name"],
             "verification_token": verification_token,
+            "verification_token_expiry": now + Config.EMAIL_CODE_TIMEOUT,
+            "created_at": now,
             "email_verified": False,
             "totp_secret": totp_secret
         }
@@ -300,13 +311,28 @@ def send_email(msg):
 
 
 def send_verification_email(user):
-    token = user['verification_token']
+    token = secrets.token_urlsafe(32)
+    expiry = datetime.now(timezone.utc) + Config.EMAIL_CODE_TIMEOUT
+
+    users_collection.update_one(
+        {"_id": user["_id"]},
+        {"$set": {
+            "verification_token": token,
+            "verification_token_expiry": expiry
+        }}
+    )
+
     verify_url = f"https://four04hacknotfound.onrender.com/auth/verify_email/{token}"
 
     msg = Message(
         subject="Vérifiez votre email pour 404HackNotFound",
         recipients=[user['email']],
-        body=f"Bonjour {user['username']} !\nCliquez ici : {verify_url}"
+        body=(
+            f"Bonjour {user['username']} !\n\n"
+            f"Cliquez ici pour vérifier votre compte : {verify_url}\n\n"
+            f"Ce lien expire dans 15 minutes.\n"
+            f"Votre compte sera supprimé sous 24h si vous ne confirmez pas votre inscription."
+        )
     )
 
     send_email(msg)
@@ -315,23 +341,35 @@ def send_verification_email(user):
 @auth_bp.route("/auth/verify_email/<token>")
 def verify_email(token):
     user = users_collection.find_one({"verification_token": token})
-    
+
     if not user:
-        flash("Token invalide ou expiré.")
+        flash("Token invalide.")
         return redirect(url_for("auth.login"))
-    
+
+    now = datetime.now(timezone.utc)
+    expiry = to_utc(user.get("verification_token_expiry"))
+
+    if not expiry or now > expiry:
+        flash("Lien expiré. Veuillez vous reconnecter pour en recevoir un nouveau.")
+        return redirect(url_for("auth.login"))
+
     users_collection.update_one(
         {"_id": user["_id"]},
-        {"$set": {"email_verified": True}, "$unset": {"verification_token": ""}}
+        {
+            "$set": {"email_verified": True},
+            "$unset": {
+                "verification_token": "",
+                "verification_token_expiry": ""
+            }
+        }
     )
 
-    flash("Email vérifié avec succès ! Vous pouvez maintenant vous connecter.")
+    flash("Email vérifié avec succès !")
     return redirect(url_for("auth.login"))
 
 
 @auth_bp.route("/auth2fa", methods=["GET", "POST"])
 def auth2fa():
-    print("DEBUG AUTH2FA SESSION:", dict(session))
     # Vérifie qu'un utilisateur est en cours de pré-auth
     pre_user_id = session.get("pre_2fa_user_id")
     if not pre_user_id:
@@ -396,9 +434,8 @@ def auth2fa():
 
 
 @auth_bp.route("/resend_2fa_code", methods=["POST"])
-#@limiter.limit("5 per minute")
+@limiter.limit("5 per minute")
 def resend_2fa_code():
-    print("DEBUG SESSION:", dict(session))
     if "pre_2fa_user_id" not in session:
         flash("Veuillez vous reconnecter pour recevoir un nouveau code.")
         return redirect(url_for("auth.login"))
@@ -439,7 +476,7 @@ def resend_2fa_code():
 
 
 @auth_bp.route("/forgot_password", methods=["GET", "POST"])
-#@limiter.limit("5 per minute", methods=["POST"])
+@limiter.limit("5 per minute", methods=["POST"])
 def forgot_password():
     if request.method == "POST":
         email = request.form["email"].strip().lower()
@@ -480,7 +517,7 @@ def forgot_password():
 
 
 @auth_bp.route("/reset_password/<token>", methods=["GET", "POST"])
-#@limiter.limit("5 per minute", methods=["POST"])
+@limiter.limit("5 per minute", methods=["POST"])
 def reset_password(token):
     user = users_collection.find_one({"reset_token": token})
 

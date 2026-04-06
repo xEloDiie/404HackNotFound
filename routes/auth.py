@@ -1,8 +1,10 @@
-from flask import Blueprint, render_template, request, redirect, url_for, session, flash, current_app
+from flask import Blueprint, render_template, request, redirect, url_for, session, flash
 from db.mongo import users_collection, roles_collection, users_progression_collection, logs_collection
 from datetime import datetime, timezone
-import secrets, pyotp, random, re, threading
-from flask_mail import Message
+import secrets, pyotp, random, re, base64
+from email.mime.text import MIMEText
+from googleapiclient.discovery import build
+from google.oauth2.credentials import Credentials
 from config import Config
 from argon2 import PasswordHasher
 from argon2.exceptions import VerifyMismatchError, InvalidHashError
@@ -16,6 +18,8 @@ auth_bp = Blueprint("auth", __name__)
 last_user = users_collection.find_one(sort=[("_id", -1)])
 next_id = last_user["_id"] + 1 if last_user and isinstance(last_user["_id"], int) else 1
 
+FROM_NAME = "404HackNotFound"
+FROM_EMAIL = "project.404hacknotfound@gmail.com"
 
 # ROUTES AUTH
 
@@ -167,18 +171,16 @@ def login():
         session["pre_2fa_role"] = user["role"]
         
         # Envoi par email
-        msg = Message(
-            subject="Votre code de connexion 404HackNotFound",
-            recipients=[user["email"]],
-            body=f"Bonjour {user['username']} !\nVoici votre code de connexion : {verification_code}"
-        )
-
         try:
-            send_email(msg)
+            send_email(
+                to=user["email"],
+                subject="Votre code de connexion 404HackNotFound",
+                body=f"Bonjour {user['username']} !\nVoici votre code de connexion : {verification_code}"
+            )
             flash("Un code d'authentification vous a été envoyé par e-mail.")
         except Exception as e:
-            print("Erreur reset_password mail:", e)
-            flash("Impossible d'envoyer l'email de réinitialisation pour le moment.")
+            print("Erreur mail:", e)
+            flash("Impossible d'envoyer l'email pour le moment.")
             return redirect(url_for("auth.login"))
 
         # Redirige vers la page pour saisir le code
@@ -248,7 +250,7 @@ def register():
         totp_secret = pyotp.random_base32()
 
         now = datetime.now(timezone.utc)
-
+        
         user = {
             "_id": next_id,
             "username": username,
@@ -296,48 +298,61 @@ def register():
     return render_template("register.html")
 
 
-def send_email(msg):
-    app = current_app._get_current_object()
+def send_email(to, subject, body):
+    try:
+        creds = Credentials.from_authorized_user_file(
+            "token.json",
+            ["https://www.googleapis.com/auth/gmail.send"]
+        )
 
-    def task(app, msg):
-        with app.app_context():
-            try:
-                mail = app.extensions.get('mail')
-                mail.send(msg)
-                print("MAIL ENVOYÉ ✅")
-            except Exception as e:
-                print("ERREUR SMTP THREAD:", e)
+        service = build('gmail', 'v1', credentials=creds)
 
-    thread = threading.Thread(target=task, args=(app, msg))
-    thread.start()
+        message = MIMEText(body)
+        message['to'] = to
+        message['from'] = f"{FROM_NAME} <{FROM_EMAIL}>"
+        message['subject'] = subject
+
+        raw = base64.urlsafe_b64encode(message.as_bytes()).decode()
+
+        service.users().messages().send(
+            userId='me',
+            body={'raw': raw}
+        ).execute()
+
+    except Exception as e:
+        print("GMAIL API ERROR:", e)
+        raise e
 
 
 def send_verification_email(user):
-    token = secrets.token_urlsafe(32)
-    expiry = datetime.now(timezone.utc) + Config.EMAIL_CODE_TIMEOUT
+    now = datetime.now(timezone.utc)
 
-    users_collection.update_one(
-        {"_id": user["_id"]},
-        {"$set": {
-            "verification_token": token,
-            "verification_token_expiry": expiry
-        }}
-    )
+    expiry = to_utc(user.get("verification_token_expiry"))
+
+    # Si pas de token ou expiré -> on en génère un nouveau
+    if not expiry or now > expiry:
+        token = secrets.token_urlsafe(32)
+
+        users_collection.update_one(
+            {"_id": user["_id"]},
+            {
+                "$set": {
+                    "verification_token": token,
+                    "verification_token_expiry": now + Config.EMAIL_CODE_TIMEOUT
+                }
+            }
+        )
+    else:
+        # sinon on garde le token existant
+        token = user["verification_token"]
 
     verify_url = f"https://four04hacknotfound.onrender.com/auth/verify_email/{token}"
 
-    msg = Message(
-        subject="Vérifiez votre email pour 404HackNotFound",
-        recipients=[user['email']],
-        body=(
-            f"Bonjour {user['username']} !\n\n"
-            f"Cliquez ici pour vérifier votre compte : {verify_url}\n\n"
-            f"Ce lien expire dans 15 minutes.\n"
-            f"Votre compte sera supprimé sous 24h si vous ne confirmez pas votre inscription."
-        )
+    send_email(
+        to=user["email"],
+        subject="Confirmez votre inscription sur 404HackNotFound",
+        body=f"Bonjour {user['username']} !\n\nCliquez ici pour vérifier votre compte : {verify_url}\n\nCe lien expire dans 15 minutes.\nVotre compte sera supprimé sous 24h si vous ne confirmez pas votre inscription."
     )
-
-    send_email(msg)
 
 
 @auth_bp.route("/auth/verify_email/<token>")
@@ -460,17 +475,15 @@ def resend_2fa_code():
     session["email_2fa_last_sent"] = now.isoformat()
 
     # Envoyer l’email
-    msg = Message(
-        subject="Votre code de connexion 404HackNotFound",
-        recipients=[user["email"]],
-        body=f"Bonjour {user['username']} !\nVoici votre code de connexion : {new_code}"
-    )
-
     try:
-        send_email(msg)
+        send_email(
+            to=user["email"],
+            subject="Votre code de connexion 404HackNotFound",
+            body=f"Bonjour {user['username']} !\nVoici votre code de connexion : {new_code}"
+        )
         flash("Un nouveau code a été envoyé par email.")
     except Exception as e:
-        print("ERREUR SMTP RESET:", e)
+        print("ERREUR MAIL:", e)
         flash("Impossible d'envoyer l'email pour le moment.")
         return redirect(url_for("auth.login"))
 
@@ -497,17 +510,15 @@ def forgot_password():
             )
 
             reset_url = f"https://four04hacknotfound.onrender.com/reset_password/{token}"
-
-            msg = Message(
-                subject="Réinitialisation de votre mot de passe",
-                recipients=[email],
-                body=f"Bonjour {user['username']} !\nCliquez ici pour réinitialiser votre mot de passe : {reset_url}"
-            )
-
+            
             try:
-                send_email(msg)
+                send_email(
+                    to=email,
+                    subject="Réinitialisation de votre mot de passe",
+                    body=f"Bonjour {user['username']} !\nCliquez ici pour réinitialiser votre mot de passe : {reset_url}"
+                )
             except Exception as e:
-                print("ERREUR SMTP RESET:", e)
+                print("ERREUR MAIL RESET:", e)
                 flash("Impossible d'envoyer l'email pour le moment.")
                 return redirect(url_for("auth.login"))
 

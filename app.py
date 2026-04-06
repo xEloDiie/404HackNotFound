@@ -1,6 +1,5 @@
 from flask import Flask, session, redirect, url_for, flash, request
 from db.mongo import logs_collection
-from flask_mail import Mail
 from datetime import datetime, timezone
 
 from routes.auth import auth_bp
@@ -19,11 +18,6 @@ app.config.from_object(Config)
 # =========================
 init_security(app)
 
-# =========================
-# MAIL
-# =========================
-mail = Mail(app)
-app.mail = mail
 
 # =========================
 # BLUEPRINTS

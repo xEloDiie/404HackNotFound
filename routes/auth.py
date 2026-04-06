@@ -174,7 +174,7 @@ def login():
         )
 
         try:
-            send_email(msg)
+            send_email(msg, async_mode=False)
             flash("Un code d'authentification vous a été envoyé par e-mail.")
         except Exception as e:
             print("Erreur reset_password mail:", e)
@@ -248,7 +248,7 @@ def register():
         totp_secret = pyotp.random_base32()
 
         now = datetime.now(timezone.utc)
-        
+
         user = {
             "_id": next_id,
             "username": username,
@@ -296,18 +296,19 @@ def register():
     return render_template("register.html")
 
 
-def send_email(msg):
-    app = current_app._get_current_object()
+def send_email(msg, async_mode=False):
+    mail = current_app.extensions.get('mail')
 
-    def task():
-        with app.app_context():
-            try:
-                mail = app.extensions.get('mail')
+    if async_mode:
+        app = current_app._get_current_object()
+
+        def task():
+            with app.app_context():
                 mail.send(msg)
-            except Exception as e:
-                print("ERREUR SMTP:", e)
 
-    threading.Thread(target=task).start()
+        threading.Thread(target=task).start()
+    else:
+        mail.send(msg)
 
 
 def send_verification_email(user):

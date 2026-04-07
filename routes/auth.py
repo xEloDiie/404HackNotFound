@@ -69,17 +69,8 @@ def login():
                 )
 
         except (VerifyMismatchError, InvalidHashError):
-            # Fallback anciens mots de passe (plaintext)
-            if user["password"] != password:
-                flash("Identifiants incorrects.")
-                return redirect(url_for("auth.login"))
-            else:
-                # Migration vers Argon2
-                new_hash = ph.hash(password)
-                users_collection.update_one(
-                    {"_id": user["_id"]},
-                    {"$set": {"password": new_hash}}
-                )
+            flash("Identifiants incorrects.")
+            return redirect(url_for("auth.login"))
 
         # Compte non vérifié
         if not user.get("email_verified", False):
@@ -162,7 +153,7 @@ def login():
         # Génération et envoi du code 2FA
         verification_code = f"{random.randint(0, 999999):06d}"
         
-        session["email_2fa_code"] = verification_code
+        session["email_2fa_code"] = ph.hash(verification_code)
         session["email_2fa_time"] = now.isoformat()
         session["email_2fa_last_sent"] = now.isoformat()
         
@@ -191,7 +182,7 @@ def login():
 
 
 def is_valid_email(email):
-    return re.match(r"^[^@]+@[^@]+\.[^@]+$", email)
+    return re.match(r"^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}$", email)
 
 
 def is_valid_username(username):
@@ -209,7 +200,7 @@ def is_strong_password(password):
 
 
 @auth_bp.route("/register", methods=["GET", "POST"])
-@limiter.limit("5 per year", methods=["POST"])
+@limiter.limit("5 per minute", methods=["POST"])
 def register():
     global next_id
 
@@ -262,7 +253,7 @@ def register():
             "verification_token_expiry": now + Config.EMAIL_CODE_TIMEOUT,
             "created_at": now,
             "email_verified": False,
-            "totp_secret": totp_secret
+            "totp_secret": base64.b64encode(totp_secret.encode()).decode()
         }
 
         try:
@@ -285,7 +276,7 @@ def register():
                 "details": f"Utilisateur '{username}' a créé un compte."
             })
 
-            next_id += 1
+            next_id = users_collection.count_documents({}) + 1
 
             flash("Compte créé avec succès, vérifiez votre e-mail.")
             return redirect(url_for("auth.login"))
@@ -386,6 +377,7 @@ def verify_email(token):
 
 
 @auth_bp.route("/auth2fa", methods=["GET", "POST"])
+@limiter.limit("5 per minute", methods=["POST"])
 def auth2fa():
     # Vérifie qu'un utilisateur est en cours de pré-auth
     pre_user_id = session.get("pre_2fa_user_id")
@@ -407,7 +399,11 @@ def auth2fa():
         email_code = session.get("email_2fa_code")
         email_time = to_utc(session.get("email_2fa_time"))
         if email_code and email_time and (now - email_time <= Config.EMAIL_CODE_TIMEOUT):
-            return code_input == email_code
+            try:
+                return ph.verify(email_code, code_input)
+            except:
+                return False
+
         return False
 
     # GET : affiche le formulaire
@@ -417,7 +413,11 @@ def auth2fa():
     # POST : vérifie le code soumis
     code_input = request.form.get("code_2fa", "").strip()
 
-    totp_secret = user.get("totp_secret")
+    totp_secret_encoded = user.get("totp_secret")
+    try:
+        totp_secret = base64.b64decode(totp_secret_encoded).decode() if totp_secret_encoded else None
+    except:
+        totp_secret = None
     totp_valid = pyotp.TOTP(totp_secret).verify(code_input) if totp_secret else False
     email_valid = is_email_code_valid(code_input)
 
@@ -429,7 +429,14 @@ def auth2fa():
         session["last_active"] = now.isoformat()
 
         # Nettoyage de la pré-session
-        for key in ["pre_2fa_user_id", "pre_2fa_username", "pre_2fa_role", "email_2fa_code", "email_2fa_time"]:
+        for key in [
+            "pre_2fa_user_id",
+            "pre_2fa_username",
+            "pre_2fa_role",
+            "email_2fa_code",
+            "email_2fa_time",
+            "email_2fa_last_sent"
+        ]:
             session.pop(key, None)
 
         # Mise à jour last_2fa_validated en DB
@@ -470,7 +477,7 @@ def resend_2fa_code():
 
     # Générer un nouveau code
     new_code = f"{random.randint(0, 999999):06d}"
-    session["email_2fa_code"] = new_code
+    session["email_2fa_code"] = ph.hash(new_code)
     session["email_2fa_time"] = now.isoformat()
     session["email_2fa_last_sent"] = now.isoformat()
 

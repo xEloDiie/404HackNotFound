@@ -4,4 +4,4 @@
 __pycache__/
 credentials.json
 token.json
-generate_token.py
+secrets/

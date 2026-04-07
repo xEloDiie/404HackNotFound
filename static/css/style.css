@@ -51,10 +51,15 @@ body {
 }
 
 .branding-top .brand-subtitle {
-    font-size: 1rem;
+    font-size: 0.9em;
     line-height: 1.1;
     color: #ffffff;
 }
+
+.navbar-brand {
+    width: 400px;
+}
+
 
 .titre-app .logo-image {
     padding-bottom: 10px;
@@ -72,7 +77,7 @@ body {
 }
 
 .titre-app .brand-subtitle {
-    font-size: 1rem;
+    font-size: 0.7em;
     line-height: 1.1;
     color: #ffffff;
 }
@@ -474,6 +479,7 @@ body.dark-theme .dropdown-menu .progress {
 .dropdown-menu .dropdown-item-text {
     margin-bottom: 8px;
 }
+
 
 /* =========================
    NAVBAR MODE JOUR 

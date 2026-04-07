@@ -85,31 +85,38 @@ def global_security():
     # Timeout uniquement user
     # =========================
     if "user_id" in session:
+
         last_active_str = session.get("last_active")
 
-        if last_active_str:
-            try:
-                last_active = datetime.fromisoformat(last_active_str)
-                now = datetime.now(timezone.utc)
+        # Si session incomplète (cas après restart serveur)
+        if not last_active_str:
+            session.clear()
+            return redirect(url_for("auth.login"))
 
-                if now - last_active > Config.SESSION_TIMEOUT:
-                    logs_collection.insert_one({
-                        "timestamp": now,
-                        "username": session.get("username"),
-                        "action": "logout",
-                        "details": "Déconnexion automatique par inactivité"
-                    })
+        try:
+            last_active = datetime.fromisoformat(last_active_str)
+        except Exception as e:
+            print("Invalid last_active format:", e)
+            session.clear()
+            return redirect(url_for("auth.login"))
 
-                    session.clear()
-                    flash("Vous avez été déconnecté pour inactivité.")
-                    
-                    return redirect(url_for("auth.login"))
+        now = datetime.now(timezone.utc)
 
-            except:
-                session.clear()
-                return redirect(url_for("auth.login"))
+        if now - last_active > Config.SESSION_TIMEOUT:
 
-        session["last_active"] = datetime.now(timezone.utc).isoformat()
+            logs_collection.insert_one({
+                "timestamp": now,
+                "username": session.get("username"),
+                "action": "logout",
+                "details": "Déconnexion automatique par inactivité"
+            })
+
+            session.clear()
+            flash("Vous avez été déconnecté pour inactivité.")
+            return redirect(url_for("auth.login"))
+
+        # Mise à jour activité
+        session["last_active"] = now.isoformat()
 
 
 @app.template_filter('paris_time')

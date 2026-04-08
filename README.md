@@ -18,14 +18,15 @@ Le projet utilise une base de données **MongoDB Atlas** et est déployé sur **
 
 ## 🧱 Stack technique
 
-- **Backend** : Flask (Python)
+- **Back-end** : Flask (Python)
 - **Base de données** : MongoDB Atlas
 - **Sécurité** :
   - Argon2 (hash des mots de passe)
   - Flask-WTF (CSRF)
   - Flask-Talisman (headers de sécurité + HTTPS)
   - Flask-Limiter (rate limiting)
-- **Email** : envoi de codes de vérification
+  - ...
+- **E-mail** : envoi de codes de vérification
 - **Déploiement** : Render
 
 ---
@@ -38,7 +39,7 @@ Le projet utilise une base de données **MongoDB Atlas** et est déployé sur **
 - ⏱️ Sessions avec expiration automatique
 - 🚫 Protection contre brute force (rate limiting)
 - 🧾 Gestion des rôles utilisateurs
-- 🔒 Sécurité renforcée (headers, HTTPS, CSRF)
+- 🔒 Sécurité renforcée (headers, HTTPS, CSRF, ...)
 
 ---
 
@@ -50,7 +51,7 @@ Notre site est accessible depuis ce lien : **https://four04hacknotfound.onrender
 
 ## 🛡️ Sécurité
 
-Le projet implémente plusieurs mécanismes de sécurité :
+Le projet implémente plusieurs mécanismes de sécurité, comme :
 
 - Hash des mots de passe avec Argon2
 - Protection CSRF
@@ -60,6 +61,7 @@ Le projet implémente plusieurs mécanismes de sécurité :
 - Rate limiting avec Flask-Limiter
 - Vérification email + 2FA
 - Restriction d’accès MongoDB par IP
+Et bien d'autres... !
 
 ---
 
@@ -73,7 +75,7 @@ MongoDB Atlas est utilisé avec :
   - roles
   - challenges
   - logs
-- Accès sécurisé via whitelist IP
+- Accès restreint avec whitelist d'IPs autorisées
 
 ---
 
@@ -99,8 +101,8 @@ L’application est déployée sur Render :
 
 ## 👥 Auteurs
 
-- **Front-End** : Alan NAFTEUR
-- **Back-End** : Elodie DECRAIE
+- **Front-end** : Alan NAFTEUR
+- **Back-end** : Elodie DECRAIE
 
 ---
 

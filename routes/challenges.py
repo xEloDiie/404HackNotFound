@@ -1,7 +1,7 @@
 from flask import Blueprint, render_template, request, redirect, url_for, session, flash
 from db.mongo import challenges_collection, users_progression_collection, logs_collection
 from utils.user_context import prepare_base_context
-from datetime import datetime
+from datetime import datetime, timezone
 
 challenges_bp = Blueprint("challenges", __name__)
 
@@ -78,7 +78,7 @@ def submit_flag(id):
             )
 
             logs_collection.insert_one({
-                "timestamp": datetime.now(),
+                "timestamp": datetime.now(timezone.utc),
                 "username": session.get("username"),
                 "action": "Challenge résolu",
                 "details": f"Challenge '{challenge['title']}' résolu par {session.get('username')}."
